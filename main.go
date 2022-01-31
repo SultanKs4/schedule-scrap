@@ -17,6 +17,15 @@ func generateFormData(nim string) map[string]string {
 	}
 }
 
+func contain(elements []string, value string) bool {
+	for _, element := range elements {
+		if element == value {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	csvFile, err := os.Create(fmt.Sprintf("%v - Schedule Sempro.csv", time.Now().Unix()))
 	if err != nil {
@@ -27,9 +36,8 @@ func main() {
 	w := csv.NewWriter(csvFile)
 	defer w.Flush()
 
-	titleRow := []string{"NIM", "No.", "Hari, Tanggal", "Waktu (WIB)", "Ruang Daring", "Nama Mahasiswa", "Judul", "Dosen Pembimbing"}
+	titleRow := []string{"NIM"}
 	csvRow := [][]string{}
-	csvRow = append(csvRow, titleRow)
 
 	c := colly.NewCollector(colly.AllowedDomains("tugasakhir.jti.polinema.ac.id"))
 
@@ -37,6 +45,12 @@ func main() {
 		if h.Index == 1 {
 			row := []string{}
 			row = append(row, h.Response.Ctx.Get("nim"))
+
+			h.ForEach("tr th", func(_ int, h *colly.HTMLElement) {
+				if !contain(titleRow, h.Text) {
+					titleRow = append(titleRow, h.Text)
+				}
+			})
 
 			h.ForEach("tr td", func(_ int, el *colly.HTMLElement) {
 				row = append(row, el.Text)
@@ -57,6 +71,7 @@ func main() {
 
 	for nim := 1841720001; nim < 1841720250; nim++ {
 		strNim := strconv.Itoa(nim)
+		fmt.Printf("get data nim: %v\n", strNim)
 		c.OnRequest(func(r *colly.Request) {
 			r.Ctx.Put("nim", strNim)
 		})
@@ -64,5 +79,9 @@ func main() {
 	}
 
 	c.Wait()
-	w.WriteAll(csvRow)
+
+	allRow := [][]string{titleRow}
+
+	allRow = append(allRow, csvRow...)
+	w.WriteAll(allRow)
 }
